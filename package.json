@@ -1,0 +1,21 @@
+{
+  "name": "locra-codematch-site",
+  "version": "2.0.0",
+  "description": "Locra CodeMatch - Education-focused Local AI Platform Website",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vite-plugin-compression": "^0.5.1"
+  },
+  "dependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
