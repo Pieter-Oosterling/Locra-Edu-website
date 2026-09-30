@@ -131,7 +131,6 @@ readonly isAuthenticated = computed(() => !!this._user());`
 
     return `
       <div class="plan-viewer">
-        <!-- Plan Header -->
         <div class="plan-header">
           <div class="plan-meta">
             <span class="plan-badge status-${this.plan.status}">${this.formatStatus(this.plan.status)}</span>
@@ -139,23 +138,19 @@ readonly isAuthenticated = computed(() => !!this._user());`
           </div>
           <h3 class="plan-title">${this.plan.title}</h3>
           <p class="plan-description">${this.plan.description}</p>
-          
           <div class="plan-progress-bar" role="progressbar" aria-valuenow="${progress}" aria-valuemin="0" aria-valuemax="100" aria-label="Plan voortgang">
             <div class="plan-progress-fill" style="width: ${progress}%"></div>
           </div>
         </div>
 
-        <!-- Steps List -->
         <div class="plan-steps" role="list" aria-label="Plan stappen">
           ${this.plan.steps.map((step, index) => this.renderStep(step, index)).join('')}
         </div>
 
-        <!-- Current Step Detail -->
         <div class="plan-detail" id="plan-detail">
           ${this.renderStepDetail(this.plan.steps[this.currentStepIndex])}
         </div>
 
-        <!-- Plan Actions -->
         <div class="plan-actions">
           <button class="btn btn-secondary" id="plan-prev" aria-label="Vorige stap" ${this.currentStepIndex === 0 ? 'disabled' : ''}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -174,7 +169,6 @@ readonly isAuthenticated = computed(() => !!this._user());`
           </button>
         </div>
 
-        <!-- Plan Controls -->
         <div class="plan-controls">
           <button class="btn btn-ghost btn-sm" id="plan-add-step">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -295,7 +289,6 @@ readonly isAuthenticated = computed(() => !!this._user());`
   private bindEvents(): void {
     if (!this.container) return;
 
-    // Step click
     this.container.querySelectorAll('.plan-step').forEach((stepEl) => {
       stepEl.addEventListener('click', (e) => {
         if ((e.target as HTMLElement).closest('.plan-step-approve, .plan-step-pause')) return;
@@ -303,14 +296,12 @@ readonly isAuthenticated = computed(() => !!this._user());`
         this.selectStep(stepIndex);
       });
 
-      // Approve button
       stepEl.querySelector('.plan-step-approve')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const stepIndex = parseInt((e.currentTarget as HTMLElement).dataset.step || '0', 10);
         this.approveStep(stepIndex);
       });
 
-      // Pause button
       stepEl.querySelector('.plan-step-pause')?.addEventListener('click', (e) => {
         e.stopPropagation();
         const stepIndex = parseInt((e.currentTarget as HTMLElement).dataset.step || '0', 10);
@@ -318,11 +309,9 @@ readonly isAuthenticated = computed(() => !!this._user());`
       });
     });
 
-    // Navigation
     this.container.querySelector('#plan-prev')?.addEventListener('click', () => this.selectStep(this.currentStepIndex - 1));
     this.container.querySelector('#plan-next')?.addEventListener('click', () => this.selectStep(this.currentStepIndex + 1));
 
-    // Controls
     this.container.querySelector('#plan-add-step')?.addEventListener('click', () => this.addStep());
     this.container.querySelector('#plan-save')?.addEventListener('click', () => this.savePlan());
     this.container.querySelector('#plan-execute')?.addEventListener('click', () => this.executePlan());
@@ -341,6 +330,7 @@ readonly isAuthenticated = computed(() => !!this._user());`
     
     detailContainer.style.opacity = '0';
     detailContainer.style.transform = 'translateY(10px)';
+    detailContainer.style.transition = 'opacity 150ms var(--ease-out), transform 150ms var(--ease-out)';
     
     setTimeout(() => {
       detailContainer.innerHTML = this.renderStepDetail(this.plan.steps[this.currentStepIndex]);
@@ -358,7 +348,6 @@ readonly isAuthenticated = computed(() => !!this._user());`
     if (nextBtn) nextBtn.disabled = this.currentStepIndex === this.plan.steps.length - 1;
     if (indicator) indicator.textContent = `Stap ${this.currentStepIndex + 1} van ${this.plan.steps.length}`;
 
-    // Update step list active state
     this.container?.querySelectorAll('.plan-step').forEach((el, i) => {
       el.classList.toggle('current', i === this.currentStepIndex);
     });
@@ -371,3 +360,186 @@ readonly isAuthenticated = computed(() => !!this._user());`
     const step = this.plan.steps[index];
     step.status = 'in-progress';
     this.renderStepInPlace(index);
+
+    // Simulate work being done
+    setTimeout(() => {
+      step.status = 'done';
+      this.renderStepInPlace(index);
+      this.updateStepDetail();
+      this.isAnimating = false;
+      
+      // Auto-advance to next pending step
+      const nextPending = this.plan.steps.findIndex((s, i) => i > index && s.status === 'pending');
+      if (nextPending !== -1) {
+        setTimeout(() => this.selectStep(nextPending), 500);
+      }
+    }, 1500);
+  }
+
+  private pauseStep(index: number): void {
+    const step = this.plan.steps[index];
+    step.status = 'pending';
+    this.renderStepInPlace(index);
+    this.updateStepDetail();
+  }
+
+  private renderStepInPlace(index: number): void {
+    const stepEl = this.container?.querySelector(`.plan-step[data-step="${index}"]`);
+    if (!stepEl) return;
+
+    const step = this.plan.steps[index];
+    const statusIcons: Record<PlanStep['status'], string> = {
+      pending: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/></svg>',
+      'in-progress': '<div class="step-spinner" aria-hidden="true"></div>',
+      done: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>',
+      skipped: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
+    };
+
+    stepEl.className = `plan-step ${step.status} ${index === this.currentStepIndex ? 'current' : ''}`;
+    stepEl.setAttribute('data-status', step.status);
+    
+    const marker = stepEl.querySelector('.plan-step-marker');
+    if (marker) marker.innerHTML = statusIcons[step.status];
+
+    const actions = stepEl.querySelector('.plan-step-actions');
+    if (actions) {
+      if (step.status === 'pending') {
+        actions.innerHTML = `
+          <button class="btn btn-ghost btn-sm plan-step-approve" data-step="${index}" aria-label="Goedkeuren en uitvoeren">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Goedkeuren
+          </button>
+        `;
+        actions.querySelector('.plan-step-approve')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.approveStep(index);
+        });
+      } else if (step.status === 'in-progress') {
+        actions.innerHTML = `
+          <button class="btn btn-ghost btn-sm plan-step-pause" data-step="${index}" aria-label="Pauzeren">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="6" y="4" width="4" height="16"/>
+              <rect x="14" y="4" width="4" height="16"/>
+            </svg>
+            Pauzeren
+          </button>
+        `;
+        actions.querySelector('.plan-step-pause')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          this.pauseStep(index);
+        });
+      } else if (step.status === 'done') {
+        actions.innerHTML = `
+          <span class="plan-step-done" aria-label="Voltooid">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"/>
+            </svg>
+            Voltooid
+          </span>
+        `;
+      }
+    }
+  }
+
+  private addStep(): void {
+    const newStep: PlanStep = {
+      id: `step-${Date.now()}`,
+      title: 'Nieuwe stap',
+      description: 'Beschrijf wat er moet gebeuren',
+      status: 'pending',
+      files: [],
+      estimatedTime: '? min'
+    };
+    this.plan.steps.splice(this.currentStepIndex + 1, 0, newStep);
+    this.render();
+  }
+
+  private savePlan(): void {
+    const planJson = JSON.stringify(this.plan, null, 2);
+    navigator.clipboard.writeText(planJson).then(() => {
+      this.showToast('Plan gekopieerd naar klembord', 'success');
+    }).catch(() => {
+      this.showToast('Kopiëren mislukt', 'error');
+    });
+  }
+
+  private executePlan(): void {
+    const pendingSteps = this.plan.steps.filter(s => s.status === 'pending' || s.status === 'in-progress');
+    if (pendingSteps.length === 0) {
+      this.showToast('Alle stappen zijn al voltooid!', 'info');
+      return;
+    }
+    
+    this.showToast(`Start uitvoering van ${pendingSteps.length} stappen...`, 'info');
+    // In a real app, this would trigger the actual execution
+  }
+
+  private animateProgress(): void {
+    const fill = this.container?.querySelector('.plan-progress-fill');
+    if (fill) {
+      fill.style.width = '0%';
+      setTimeout(() => {
+        const completedSteps = this.plan.steps.filter(s => s.status === 'done').length;
+        const totalSteps = this.plan.steps.length;
+        const progress = (completedSteps / totalSteps) * 100;
+        (fill as HTMLElement).style.width = `${progress}%`;
+      }, 100);
+    }
+  }
+
+  private formatStatus(status: string): string {
+    const labels: Record<string, string> = {
+      draft: 'Concept',
+      active: 'Actief',
+      completed: 'Voltooid',
+      cancelled: 'Geannuleerd',
+      pending: 'Wachtend',
+      'in-progress': 'Bezig',
+      done: 'Klaar',
+      skipped: 'Overgeslagen'
+    };
+    return labels[status] || status;
+  }
+
+  private escapeHtml(text: string): string {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  private highlightCode(code: string): string {
+    return code
+      .replace(/\b(import|export|const|let|var|function|return|if|else|for|while|class|interface|type|async|await|try|catch|finally|throw|new|this|super|extends|implements|public|private|protected|readonly|static|abstract|get|set|pipe|map|take|inject)\b/g, '<span class="kw">$1</span>')
+      .replace(/\b(string|number|boolean|void|any|unknown|never|null|undefined|object|Array|Promise|Map|Set|CanActivateFn|Router|AuthService)\b/g, '<span class="type">$1</span>')
+      .replace(/\b(true|false)\b/g, '<span class="const">$1</span>')
+      .replace(/("([^"\\]|\\.)*"|'([^'\\]|\\.)*')/g, '<span class="str">$1</span>')
+      .replace(/(`[^`]*`)/g, '<span class="str">$1</span>')
+      .replace(/(\/\/.*$)/gm, '<span class="comment">$1</span>')
+      .replace(/(@\w+)/g, '<span class="dec">$1</span>');
+  }
+
+  private showToast(message: string, type: 'success' | 'error' | 'info' = 'info'): void {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.innerHTML = `
+      <div class="toast-content">
+        <div class="toast-message">${message}</div>
+      </div>
+    `;
+    
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+      container = document.createElement('div');
+      container.className = 'toast-container';
+      document.body.appendChild(container);
+    }
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('removing');
+      setTimeout(() => toast.remove(), 200);
+    }, 3000);
+  }
+}
